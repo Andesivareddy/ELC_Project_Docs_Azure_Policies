@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: app-two
+  labels:
+    app: aquadeployment
+  name: app-two
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aquadeployment
+  strategy: {}
+  template:
+    metadata:
+      labels:
+        app: aquadeployment
+    spec:
+      containers:
+      - name: aquasec-kube-bench
+        image: aquasec/kube-bench:v0.7.0
+      imagePullSecrets:
+        - name: sre-apac-prod-reg
