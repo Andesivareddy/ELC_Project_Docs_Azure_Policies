@@ -1,0 +1,58 @@
+policyName - SampleAzurePolicies
+policyDisplayName - AutomationAzurePolicies
+policyDescription - This is Deployed through the Azure DevOps Pipelines by using the Powershell Script
+subscriptionId - 98de674b-6532-4d3b-805a-b483c098489a
+managementGroupName - 66506c2a-6790-40f4-b1b3-3e246802d1d2
+policyRule - azurepolicy/PolicyRuleName/RuleName.json 
+
+
+
+$policyName = "$(policyName)"
+$policyDisplayName = "$(policyDisplayName)"
+$policyDescription = "$(policyDescription)"
+$subscriptionId = "$(subscriptionId)"
+$managementGroupName = "$(managementGroupName)"
+$policyRule = "$(policyRule)"
+
+if (!$policyName)
+{
+throw "Unable to create policy definition: required input variable value `$(PolicyName) was not provided"
+}
+
+if (!$policyRule)
+{
+throw "Unable to create policy definition: required input variable value `$(PolicyRule) was not provided"
+}
+
+if ($subscriptionId -and $managementGroupName)
+{
+throw "Unable to create policy definition: `$(SubscriptionId) '$subscriptionId' and `$(ManagementGroupName) '$managementGroupName' were both provided. Either may be provided, but not both."
+}
+
+$cmdletParameters = @{Name=$policyName; Policy=$policyRule; Mode='Indexed'}
+if ($policyDisplayName)
+{
+$cmdletParameters += @{DisplayName=$policyDisplayName}
+}
+
+if ($policyDescription)
+{
+$cmdletParameters += @{Description=$policyDescription}
+}
+
+if ($subscriptionId)
+{
+$cmdletParameters += @{SubscriptionId=$subscriptionId}
+}
+
+if ($managementGroupName)
+{
+$cmdletParameters += @{ManagementGroupName=$managementGroupName}
+}
+
+if ($policyParameters)
+{
+$cmdletParameters += @{Parameter=$policyParameters}
+}
+
+&New-AzPolicyDefinition @cmdletParameters

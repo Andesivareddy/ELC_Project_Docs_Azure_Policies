@@ -1,0 +1,53 @@
+# Parameters
+$resourceGroupName = "Siva_RG"
+$policyAssignmentName = "appservice"
+$alertRuleName = "PolicyViolationAlert"
+$policyDefinitionName = "AutomationAzurePolicies"
+$alertSeverity = "Sev3"  # Adjust the severity level as needed
+$alertDescription = "Policy violation alert for $policyDefinitionName"
+$alertThreshold = 1  # Number of violations to trigger the alert
+$clientId = "9e9877c6-5406-4148-a61a-24c3b89eba05"
+$clientSecret = "cZJ8Q~qel7IoSL8qrVPd2crnQTSBiqnQMlPQ-coS"
+$tenantId = "66506c2a-6790-40f4-b1b3-3e246802d1d2"
+
+az login  --service-principal  --username $clientId --password $clientSecret --tenant $tenantId
+
+# Sign in to Azure (if not already authenticated)
+#az login
+
+# Get the policy assignment ID
+$policyAssignment = az policy assignment show --name $policyAssignmentName --output json
+$policyAssignmentId = $policyAssignment.Id
+
+# Create an Azure Monitor metric alert rule
+$rule = @{
+    resourceGroupName = $resourceGroupName
+    ruleName = $alertRuleName
+    location = $policyAssignment.Location
+    description = $alertDescription
+    isEnabled = $true
+    severity = $alertSeverity
+    condition = @{
+        metricName = "TotalPolicyEvaluations"
+        metricNamespace = "Microsoft.Authorization/policyDefinitions"
+        metricResourceUri = $policyAssignmentId
+        operator = "GreaterThan"
+        threshold = $alertThreshold
+        timeAggregation = "Total"
+    }
+    action = @{
+        severity = "Sev3"
+        aznsAction = @{
+            actionGroup = @()  # Add action groups if needed
+        }
+    }
+}
+
+# Create the alert rule
+az monitor metrics alert create --target-resource-id $policyAssignmentId --scopes $policyAssignmentId --rule-name $alertRuleName --actions-enabled --condition @($rule.condition) --description $rule.description --severity $rule.severity --window-size '5m' --evaluation-frequency '5m' --actions @($rule.action)
+
+Write-Host "Azure Policy alert rule created successfully."
+
+
+
+

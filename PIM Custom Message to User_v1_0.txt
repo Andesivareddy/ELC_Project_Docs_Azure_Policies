@@ -1,0 +1,5 @@
+# Write your PowerShell commands here.
+
+Write-Host "##vso[task.logissue type=error]Something went wrong Please check PIM Access for Service Principle or Extend the PIM Access to the user for to deploy the Pipeline."
+Write-Host "##vso[task.complete result=Failed]"
+exit 0

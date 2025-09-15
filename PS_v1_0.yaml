@@ -1,0 +1,176 @@
+---
+trigger:
+  - master
+stages:
+  - stage: Release_PSscripts
+    jobs:
+      - job: release
+        pool:
+          name: Azure Pipelines
+          vmImage: windows-2019
+        steps:
+          - task: AzurePowerShell@5
+            displayName: Create Azure Policy
+            inputs:
+              azureSubscription: "$(ServiceConnection)"
+              azurePowerShellVersion: LatestVersion
+              ScriptType: InlineScript
+              Inline: |
+               $policyName = "$(policyName)"
+               $policyDisplayName = "$(policyDisplayName)"
+               $policyDescription = "$(policyDescription)"
+               $subscriptionId = "$(subscriptionId)"
+               $managementGroupName = "$(managementGroupName)"
+               $policyRule = "$(policyRule)"
+                if (!$policyName)
+                {
+                  throw "Unable to create policy definition: required input variable value `$(PolicyName) was not provided"
+                }
+                if (!$policyRule)
+                {
+                  throw "Unable to create policy definition: required input variable value `$(PolicyRule) was not provided"
+                }
+                if ($subscriptionId -and $managementGroupName)
+                {
+                  throw "Unable to create policy definition: `$(SubscriptionId) '$subscriptionId' and `$(ManagementGroupName) '$managementGroupName' were both provided. Either may be provided, but not both."
+                }
+                $cmdletParameters = @{Name=$policyName; Policy=$policyRule; Mode='Indexed'}
+                if ($policyDisplayName)
+                {
+                $cmdletParameters += @{DisplayName=$policyDisplayName}
+                }
+                if ($policyDescription)
+                {
+                $cmdletParameters += @{Description=$policyDescription}
+                }
+                if ($subscriptionId)
+                {
+                $cmdletParameters += @{SubscriptionId=$subscriptionId}
+                }
+                if ($managementGroupName)
+                {
+                $cmdletParameters += @{ManagementGroupName=$managementGroupName}
+                }
+                if ($policyParameters)
+                {
+                $cmdletParameters += @{Parameter=$policyParameters}
+                }
+                &New-AzPolicyDefinition @cmdletParameters
+    
+          - task: AzurePowerShell@5
+            displayName: Assign Azure Policy Definition
+            inputs:
+              azureSubscription: "$(ServiceConnection)"
+              azurePowerShellVersion: LatestVersion
+              ScriptType: InlineScript
+              Inline: |  
+               $assignmentName = "$(AssignmentName)"
+               $policyName = "$(PolicyName)"
+               $subscriptionId = "$(subscriptionId)"
+               $managedIdentity = "$(managedIdentity)"
+               if (!$assignmentName)
+               {
+               throw "Unable to create policy assignment: required input variable value `$(AssignmentName) was not provided"
+               }
+               if (!$policyName -and !$policySetName)
+               {
+               throw "Unable to create policy assignment: neither `$(PolicyName) nor `$(PolicySetName) was provided. One or the other must be provided."
+               }
+               if ($policyName -and $policySetName)
+               {
+               throw "Unable to create policy assignment: `$(PolicyName) '$policyName' and `$(PolicySetName) '$policySetName' were both provided. Either may be provided, but not both."
+               }
+               if ($subscriptionId -and $managementGroupName)
+               {
+               throw "Unable to create policy assignment: `$(SubscriptionId) '$subscriptionId' and `$(ManagementGroupName) '$managementGroupName' were both provided. Either may be provided, but not both."
+               }
+               if ($managementGroupName -and $resourceGroupName)
+               {
+               throw "Unable to create policy assignment: `$(ManagementGroupName) '$managementGroupName' and `$(ResourceGroupName) '$resourceGroupName' were both provided. Either may be provided, but not both."
+               }
+               if ($managementGroupName)
+               {
+               $scope = "/providers/Microsoft.Management/managementGroups/$managementGroupName"
+               $searchParameters = @{ManagementGroupName=$managementGroupName}
+               }
+               else
+               {
+               if (!$subscriptionId)
+               {
+               $subscription = Get-AzContext | Select-Object -Property Subscription
+               $subscriptionId = $subscription.Id
+               }
+               $scope = "/subscriptions/$subscriptionId"
+               $searchParameters = @{SubscriptionId=$subscriptionId}
+               if ($resourceGroupName)
+               {
+               $scope += "/resourceGroups/$resourceGroupName"
+               }
+               }
+               $cmdletParameters = @{Name=$assignmentName; Scope=$scope}
+               if ($assignmentDisplayName)
+               {
+               $cmdletParameters += @{DisplayName=$assignmentDisplayName}
+               }
+               else
+               {
+               $cmdletParameters += @{DisplayName=$assignmentName}
+               }
+               if ($assignmentDescription)
+               {
+               $cmdletParameters += @{Description=$assignmentDescription}
+               }
+               if ($policyName)
+               {
+               $policyDefinition = Get-AzPolicyDefinition @searchParameters | Where-Object { $_.Name -eq $policyName }
+               if (!$policyDefinition)
+               {
+               throw "Unable to create policy assignment: policy definition $policyName does not exist"
+               }
+               $cmdletParameters += @{PolicyDefinition=$policyDefinition}
+               }
+               if ($policySetName)
+               {
+               $policySetDefinition = Get-AzPolicySetDefinition @searchParameters | Where-Object { $_.Name -eq $policySetName }
+               if (!$policySetDefinition)
+               {
+               throw "Unable to create policy assignment: policy set definition $policySetName does not exist"
+               }
+               $cmdletParameters += @{PolicySetDefinition=$policySetDefinition}
+               }
+               if ($policyParameters)
+               {
+               $cmdletParameters += @{PolicyParameter=$policyParameters}
+               }
+               if ($managedIdentity)
+               {
+               &New-AzPolicyAssignment @cmdletParameters -Location 'eastus' -AssignIdentity
+               }
+               else
+               {
+               &New-AzPolicyAssignment @cmdletParameters
+               }
+                                            
+      # - job: waitForValidationThenApplyJob
+      #   displayName: Wait for external validation 
+      #   pool: server    
+      #   timeoutInMinutes: 4320 # job times out in 3 days
+      #   steps:   
+
+      #     - task: ManualValidation@0
+      #       timeoutInMinutes: 1440 # task times out in 1 day #
+      #       inputs:
+      #         notifyUsers: |
+      #           avijaykumar@estee.com
+      #         instructions: 'You should validate the file'
+      #      #onTimeout: 'resume'           
+          
+          
+
+
+
+
+
+
+
+             
